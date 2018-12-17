@@ -1,0 +1,40 @@
+custom_require.call(%w[common common-items common-arcana events drinfomon equipmanager])
+
+class OM
+  include DRC
+  include DRCA
+
+  def initialize
+    settings = get_settings
+    @amount = settings.osrel_amount
+    @no_harness = settings.osrel_no_harness
+    @threshold = settings.osrel_threshold || 75
+    @no_use_scripts = ['training-manager', 'combat-trainer', 'go2', 'bescort']
+
+    while true
+      if om_charge < @threshold
+        charge_orb
+      end
+      pause 15
+    end
+  end
+
+  def om_charge
+    return DRSpells.active_spells['Osrel Meraud']
+  end
+
+  def charge_orb
+    return if @no_use_scripts.any? { |name| Script.running?(name) }
+
+    Script.running.find_all { |s| !s.paused? && !s.no_pause_all && s.name != 'om' }.each(&:pause)
+    waitrt?
+
+    while om_charge < 100
+      DRCA.infuse_om(!@no_harness, @amount)
+    end
+
+    Script.running.find_all { |s| s.paused? && !s.no_pause_all && s.name != 'om' }.each(&:unpause)
+  end
+end
+
+OM.new
